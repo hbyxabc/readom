@@ -110,7 +110,7 @@ static void report(const char *message) {
  * itself. Nothing here can draw on the panel, so the last thing the user sees
  * is the launcher's starting screen, which already says the Kindle may restart
  * itself back to its own system within a few minutes. Waiting for ever instead
- * left the only way out as holding the power button for twenty seconds, and
+ * left the only way out as holding the power button for forty seconds, and
  * someone whose whole toolkit is a USB cable has no reason to know that the
  * wait is pointless. Two minutes is long enough to read the screen and to
  * catch the device over USB while the kernel log is still in memory. */
@@ -158,7 +158,7 @@ __attribute__((noreturn)) static void stop(const char *message) {
     sync();
     for (unsigned left = STOP_SECONDS; left; --left) sleep(1);
     reboot(RB_AUTOBOOT);
-    report("the restart was refused; holding the power button for 20 seconds is the way back.");
+    report("the restart was refused; holding the power button for 40 seconds is the way back.");
     for (;;) pause();
 }
 static bool decimal(const char *s, uint64_t *out) {
