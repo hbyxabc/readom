@@ -670,7 +670,25 @@ int main(int argc, char **argv) {
 #else
     (void)exact_file; require(strstr(u.release, "-pw3-core-smoke") != NULL, "virtual_profile");
 #endif
-    require(original_boot() && root_readonly(), "original_boot_and_readonly_root_before");
+    /* The stock system's own files are what this program must leave alone, and
+     * exact_file() is what says so. Whether "/" is mounted read-only is the
+     * jailbreak's state, not something a tap can require: the hotfix that puts
+     * this entry in the library writes /etc and /usr/bin, and on 5.16.2.1.1
+     * that cannot be undone from the running system -- `mntroot ro` answers
+     * "mount: / is busy" -- so requiring ro refused exactly the devices this
+     * entry needs a jailbreak to reach. 2026-11-06: a PW3 on 5.16.2.1.1 with
+     * LanguageBreak and the MKK hotfix stopped here on every tap and wrote
+     * nothing, with original_boot_verified=1 and root_readonly_verified=0.
+     *
+     * What ro stood in for is that these files cannot change between the check
+     * and the handoff, and that is checked where it matters: original_boot()
+     * runs again after the probe, immediately before the commit, so the files
+     * are the original ones at the moment the kernel is started. A writable
+     * root is reported rather than refused -- PW3_FIRST_KERNEL_CLEANUP carries
+     * root_readonly_verified and preflight-complete.txt carries
+     * root_readonly=0 -- because it says what the device was like, not what
+     * went wrong with the tap. */
+    require(original_boot(), "original_boot_before_probe");
     /* Which Kindle this is, and then the android folder's lock, before the
      * cleanup below reaches into something another tap may own. Until
      * 2026-10-27 the lock was taken inside install(), four steps further on,
@@ -803,8 +821,15 @@ int main(int argc, char **argv) {
     checkpoint("after_prepare");
     require(mlockall(MCL_CURRENT|MCL_FUTURE)==0,"lock_client_memory");
     sleep(1);run_native_cycle(0);
-    require(original_boot() && root_readonly(),"original_boot_and_root_after_probe");
-    write_result("preflight-complete.txt","schema=pw3-first-kernel-preflight-v1\ncore_roundtrip_and_hardware_guard=1\noriginal_boot_verified=1\nroot_readonly=1\nnew_kernel_attempted=0\n");
+    /* The same check as before the probe, and the one that carries the weight
+     * the read-only root used to carry: this is the last look at the stock
+     * files before the kernel is started. */
+    require(original_boot(),"original_boot_after_probe");
+    char preflight[256];
+    snprintf(preflight, sizeof preflight,
+        "schema=pw3-first-kernel-preflight-v1\ncore_roundtrip_and_hardware_guard=1\n"
+        "original_boot_verified=1\nroot_readonly=%d\nnew_kernel_attempted=0\n", root_readonly());
+    write_result("preflight-complete.txt", preflight);
     checkpoint("before_commit");
 #if defined(PW3_INSTALLER)
     show(install_upgraded ? PW3_SCREEN_BOOT_UPGRADE : PW3_SCREEN_BOOT);
